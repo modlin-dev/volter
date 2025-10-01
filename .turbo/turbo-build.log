@@ -1,0 +1,8 @@
+$ bun build ./src/*.ts --outdir ./dist --target node
+Bundled 84 modules in 75ms
+
+  index.js    0.45 MB  (entry point)
+  receive.js  1.48 KB  (entry point)
+  session.js  1.89 KB  (entry point)
+  utils.js    0.45 MB  (entry point)
+
