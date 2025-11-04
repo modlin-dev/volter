@@ -1,6 +1,4 @@
 import type { RedisClient, SocketAddress } from "bun"
-import { createID } from "./utils"
-import type { BunSQLDatabase } from "drizzle-orm/bun-sql"
 
 declare global {
 	interface Request {
@@ -39,7 +37,7 @@ export namespace Volter {
 		}
 		pop(): void {
 			const keys = Object.keys(this.store)
-			delete this.store[keys[keys.length - 1]]
+			delete this.store[keys[keys.length - 1] ?? ""]
 		}
 		has(key: string): boolean {
 			return this.store[key] !== undefined
@@ -141,41 +139,6 @@ export namespace Volter {
 				remaining: this.max - count,
 			}
 		}
-	}
-
-	export interface SessionsOptions {
-		redis: RedisClient
-		db: BunSQLDatabase
-	}
-	export class Sessions {
-		constructor(options: SessionsOptions) {
-			this.redis = options.redis
-			this.db = options.db
-		}
-		redis: RedisClient
-		db: BunSQLDatabase
-		async create(id: string) {
-			const session = createID()
-			const lookup = hash(session)
-			await this.redis.set(`session:${lookup}`, id, "EX", 2592000) // 30 days
-			return session
-		} // create
-		async validate(token: string) {
-			const lookup = hash(token)
-			// todo: login
-			return await this.redis.get(`session:${lookup}`)
-		} // read
-		async rotate(token: string) {
-			const isValid = await this.validate(token)
-			if (!isValid) return undefined
-			await this.revoke(token)
-			return await this.create(token)
-		}
-		async revoke(token: string) {
-			const lookup = hash(token)
-			await this.redis.del(`session:${lookup}`)
-			return true
-		} // delete
 	}
 }
 

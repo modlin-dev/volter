@@ -1,21 +1,22 @@
 {
 	"$schema": "https://json.schemastore.org/package",
 	"name": "volter",
-	"version": "0.0.172",
+	"version": "0.0.173",
 	"description": "Secure, lightweight, and user-friendly modern JavaScript toolchain optimized for performance and minimalism.",
 	"main": "index.ts",
 	"module": "index.ts",
 	"type": "module",
 	"scripts": {
-		"build": "bun build ./src/*.ts --outdir ./dist --target node"
+		"build": "bun build ./src/*.ts --outdir ./dist"
 	},
 	"exports": {
 		"./*": {
-            "types": "./src/*.d.ts",
-			"import": "./src/*.ts",
-			"default": "./src/*.ts"
+            "types": "./types/*.d.ts",
+			"import": "./dist/*.js",
+			"default": "./dist/*.js"
 		}
 	},
+    "files": ["dist", "types"],
     "types": "./src/types.d.ts",
     "typings": "./src/types.d.ts",
 	"devDependencies": {
