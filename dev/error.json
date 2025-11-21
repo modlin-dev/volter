@@ -1,0 +1,7 @@
+[
+    {
+        "message": "User with that email address already exists",
+        "at": ["email"],
+        "code": "ALREADY_EXISTS"
+    }
+]

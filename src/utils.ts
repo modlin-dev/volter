@@ -76,3 +76,10 @@ export function prettifyRequest(req: Request): string {
 	const url = ansi.white(new URL(req.url).pathname)
 	return `${ansi.gray(timestamp())} ${ansi.red(req.ip.address)} ${ansi.green(req.method)} ${url}`
 }
+
+export function zip(text: string): Uint8Array<ArrayBuffer> {
+    return Bun.gzipSync(text)
+}
+export function unzip(zipped: Uint8Array<ArrayBuffer>): string {
+    return new TextDecoder().decode(Bun.gunzipSync(zipped))
+}
