@@ -1,5 +1,5 @@
 import type { Resend, CreateEmailOptions } from "resend"
-import type { Redis } from "@upstash/redis"
+import type { RedisClient } from "bun"
 
 export interface SessionOptions {
 	id: string
@@ -27,10 +27,10 @@ export interface SessionPayload {
 
 export class Sessions {
 	constructor(options?: {
-		store?: Redis
+		store?: RedisClient
 		readonly expiry?: number
 	})
-	readonly store: Redis
+	readonly store: RedisClient
 	readonly expiry: number
 
 	validate(token: string): Promise<string | null>
@@ -40,18 +40,18 @@ export class Sessions {
 	rotate(token: string): Promise<SessionPayload | null>
 	revoke(token: string): Promise<void>
 	delete(token: string): Promise<void>
-	fallback(id: string): void
+	fallback(id: string): Promise<void>
 }
 
 export class e1T {
 	constructor(options?: {
-		store?: Redis
+		store?: RedisClient
 		expiry?: number
 		attempts?: number
 		resend?: Resend
 		template?: (email: string, code: string) => CreateEmailOptions
 	})
-	store: Redis
+	store: RedisClient
 	expiry: number
 	attempts: number
 	resend: Resend

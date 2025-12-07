@@ -1,7 +1,7 @@
-import { Redis } from "@upstash/redis"
 import { hash } from "./crypto"
 import { createID, createPIN } from "./utils"
 import { Resend, type CreateEmailOptions } from "resend"
+import type { RedisClient } from "bun"
 
 export interface SessionOptions {
 	id: string
@@ -37,16 +37,16 @@ export interface SessionPayload {
 
 export class Sessions {
 	constructor({
-		store = Redis.fromEnv(),
+		store = Bun.redis,
 		expiry = 2592000,
 	}: {
-		store?: Redis
+		store?: RedisClient
 		readonly expiry?: number
 	} = {}) {
 		this.store = store
 		this.expiry = expiry
 	}
-	readonly store: Redis
+	readonly store: RedisClient
 	readonly expiry: number
 
 	async validate(token: string): Promise<string | null> {
@@ -55,9 +55,7 @@ export class Sessions {
 	async create(id: string): Promise<SessionPayload> {
 		const session = createID()
 		const lookup = hash(session)
-		await this.store.set(`session:${lookup}`, id, {
-			ex: this.expiry, // 30 days
-		})
+		await this.store.set(`session:${lookup}`, id, "EX", this.expiry) // 30 days
 		await this.store.sadd(`user:${id}:sessions`, lookup)
 		const created = Date.now()
 		const expires = created + this.expiry * 1000
@@ -95,7 +93,7 @@ export class Sessions {
 		const sessions = await this.store.smembers(`user:${id}:sessions`)
 		const list: Session[] = []
 		for (let i = 0; i < sessions.length; i++) {
-			const lookup = sessions[i]
+			const lookup = sessions[i] as string
 			if (await this.store.exists(`session:${lookup}`)) {
 				const expires = Date.now() + (await this.store.ttl(`session:${lookup}`)) * 1000
 				list.push(
@@ -136,7 +134,7 @@ const resend = new Resend(Bun.env.RESEND_API_KEY)
 
 export class e1T {
 	constructor({
-		store = Redis.fromEnv(), // storage bucket
+		store = Bun.redis, // storage bucket
 		expiry = 60, // OTP expire time
 		attempts = 5, // maximum failed attempts
 		resend = new Resend(),
@@ -147,7 +145,7 @@ export class e1T {
 			text: `${code} is your verification code. For your security, do not share this code.`,
 		}),
 	}: {
-		store?: Redis
+		store?: RedisClient
 		expiry?: number
 		attempts?: number
 		resend?: Resend
@@ -159,7 +157,7 @@ export class e1T {
 		this.resend = resend
 		this.template = template
 	}
-	store: Redis
+	store: RedisClient
 	expiry: number
 	attempts: number
 	resend: Resend
@@ -167,12 +165,8 @@ export class e1T {
 
 	async create(email: string) {
 		const code = createPIN()
-		await this.store.set(`code:${email}`, hash(code), {
-			ex: this.expiry,
-		})
-		await this.store.set(`code.attempts:${email}`, "0", {
-			ex: this.expiry,
-		})
+		await this.store.set(`code:${email}`, hash(code), "EX", this.expiry)
+		await this.store.set(`code.attempts:${email}`, "0", "EX", this.expiry)
 
 		return {
 			email,
@@ -183,12 +177,8 @@ export class e1T {
 
 	async send(email: string) {
 		const code = createPIN()
-		await this.store.set(`code:${email}`, hash(code), {
-			ex: this.expiry,
-		})
-		await this.store.set(`code.attempts:${email}`, "0", {
-			ex: this.expiry,
-		})
+		await this.store.set(`code:${email}`, hash(code), "EX", this.expiry)
+		await this.store.set(`code.attempts:${email}`, "0", "EX", this.expiry)
 
 		await resend.emails.send(this.template(email, code))
 

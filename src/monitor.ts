@@ -1,16 +1,15 @@
-import { stdout } from "bun"
-import { Redis } from "@upstash/redis"
+import { stdout, type RedisClient } from "bun"
 
 export interface MonitorOptions {
-	store?: Redis
+	store?: RedisClient
 	resolver?: (data: unknown) => unknown
 }
 export class Monitor {
 	constructor(options?: MonitorOptions) {
-		this.store = options?.store ?? Redis.fromEnv()
+		this.store = options?.store ?? Bun.redis
 		this.resolver = options?.resolver ?? (data => JSON.stringify(data))
 	}
-	store: Redis
+	store: RedisClient
 	resolver: (data: unknown) => unknown
 
 	async log(data: unknown) {
