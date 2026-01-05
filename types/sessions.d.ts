@@ -35,10 +35,12 @@ export class Sessions {
 
 	validate(token: string): Promise<string | null>
 	create(id: string): Promise<SessionPayload>
-	get(token: string | Session): Promise<Session | null>
+    /** @error */
+	get(token: string | Session): Promise<Session>
+	safeGet(token: string | Session): Promise<Session | null>
 	list(id: string): Promise<Session[]>
-	rotate(token: string): Promise<SessionPayload | null>
-	revoke(token: string): Promise<void>
+	rotate(token: string): Promise<SessionPayload | null> // update
+	revoke(token: string): Promise<void> // delete
 	delete(token: string): Promise<void>
 	fallback(id: string): Promise<void>
 }

@@ -40,6 +40,7 @@ export function debug(...message: unknown[]) {
 export async function input(prompt: string = ansi.black("> ")) {
 	await Bun.stdout.write(prompt)
 	for await (const line of console) {
+        console.log(line)
 		return line
 	}
 }
