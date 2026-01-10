@@ -28,59 +28,29 @@ export function timestamp(date?: Date): string {
 }
 
 export function log(...message: unknown[]) {
-	console.log(ansi.gray(timestamp()), ...message)
+	console.log(ansi.dim(timestamp()), ...message)
 }
 export function error(...message: unknown[]) {
 	console.error(ansi.red(timestamp()), ...message)
 }
 export function debug(...message: unknown[]) {
-	console.log(ansi.gray(timestamp()), ...message)
+	console.debug(ansi.yellow(timestamp()), ...message)
+}
+export function warn(...message: unknown[]) {
+	console.warn(ansi.yellow(timestamp()), ...message)
 }
 
-export async function input(prompt: string = ansi.black("> ")) {
+export async function input(prompt: string = ansi.dim("> ")) {
 	await Bun.stdout.write(prompt)
 	for await (const line of console) {
-        console.log(line)
+		console.log(line)
 		return line
 	}
 }
 
-export type HTTPLog = {
-	timestamp: string
-	method: string
-	url: string
-	ip: string
-	request_id?: string
-	service?: string
-	level: "info" | "warn" | "error"
-}
-
-/**
- * Returns a structured JSON log of the request
- */
-export function formatRequest(req: Request): HTTPLog {
-	return {
-		timestamp: new Date().toISOString(),
-		method: req.method,
-		url: new URL(req.url).pathname,
-		ip: req.headers.get("x-forwarded-for") ?? "unknown",
-		request_id: req.headers.get("x-request-id") ?? "none",
-		service: "app",
-		level: "info",
-	}
-}
-
-/**
- * Returns a one-line pretty string with colors using chalk
- */
-export function prettifyRequest(req: Request): string {
-	const url = ansi.white(new URL(req.url).pathname)
-	return `${ansi.gray(timestamp())} ${ansi.red(req.ip.address)} ${ansi.green(req.method)} ${url}`
-}
-
 export function zip(text: string): Uint8Array<ArrayBuffer> {
-    return Bun.gzipSync(text)
+	return Bun.gzipSync(text)
 }
 export function unzip(zipped: Uint8Array<ArrayBuffer>): string {
-    return new TextDecoder().decode(Bun.gunzipSync(zipped))
+	return new TextDecoder().decode(Bun.gunzipSync(zipped))
 }
