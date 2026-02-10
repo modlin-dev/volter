@@ -27,6 +27,9 @@ export function timestamp(date?: Date): string {
 	return date.toISOString().slice(0, 19).replace("T", " ")
 }
 
+export function info(...message: unknown[]) {
+	console.log(`${ansi.blue("info")}${ansi.dim(":")}`, ...message)
+}
 export function log(...message: unknown[]) {
 	console.log(ansi.dim(timestamp()), ...message)
 }

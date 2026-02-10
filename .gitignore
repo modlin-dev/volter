@@ -42,3 +42,8 @@ bun.lock
 
 # MIS
 dev
+
+# Added by cargo
+
+/target
+Cargo.lock
