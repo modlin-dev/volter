@@ -1,8 +1,8 @@
-import { hash } from "./crypto"
-import { createID, createPIN } from "./utils"
-import { Resend, type CreateEmailOptions } from "resend"
 import type { RedisClient } from "bun"
+import { Resend, type CreateEmailOptions } from "resend"
 import { ErrorCodes, ServerError } from "./error"
+import { createID, createPIN } from "./utils"
+import { hash } from "./crypto"
 
 export interface SessionOptions {
 	id: string

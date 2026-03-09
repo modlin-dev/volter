@@ -1,19 +1,60 @@
 mod utils;
 
-use crate::utils::{Family, Socket, SocketAddress, StreamEvent, StreamEventLevel};
+use crate::utils::{DateTimeExt, Socket, SocketAddrEnv};
+use chrono::Utc;
 use colored::Colorize;
-use std::env;
-use tokio::io::copy_bidirectional;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::{TcpListener, TcpStream, UdpSocket, windows::named_pipe::ClientOptions};
-use tokio::spawn;
+use std::{
+    net::SocketAddr,
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
+};
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt, copy_bidirectional},
+    net::{TcpListener, TcpStream, UdpSocket, windows::named_pipe::ClientOptions},
+    spawn,
+};
 
-async fn process_pipe(mut stream: TcpStream) -> tokio::io::Result<()> {
+#[allow(dead_code)]
+async fn process_tcp(mut stream: TcpStream) -> tokio::io::Result<()> {
     // info!("{}", StreamEvent::new(StreamEventLevel::Open, addr));
+    let mut client = TcpStream::connect("127.0.0.1:843").await?;
+    copy_bidirectional(&mut stream, &mut client).await?;
+    // info!("{}", StreamEvent::new(StreamEventLevel::Close, addr));
+    Ok(())
+}
 
+#[allow(dead_code)]
+async fn process_udp(mut stream: TcpStream, target: &String) -> tokio::io::Result<()> {
+    stream.set_nodelay(true)?;
+    let datagram = UdpSocket::bind("0.0.0.0:0").await?;
+    datagram.connect(target).await?;
+
+    let mut buf = [0u8; 8192];
+
+    let n = stream.read(&mut buf).await?;
+    datagram.send(&buf[..n]).await?;
+
+    let n = datagram.recv(&mut buf).await?;
+    stream.write_all(&buf[..n]).await?;
+    Ok(())
+}
+
+async fn process_raw(mut stream: TcpStream) -> tokio::io::Result<()> {
+    stream.set_nodelay(true)?;
+    stream
+        .write_all("HTTP/1.1 200 OK\r\n\r\nHello, world!".as_bytes())
+        .await?;
+    stream.shutdown().await?;
+    Ok(())
+}
+
+#[allow(dead_code)]
+async fn process_pipe(mut stream: TcpStream) -> tokio::io::Result<()> {
+    stream.set_nodelay(true)?;
+    // info!("{}", StreamEvent::new(StreamEventLevel::Open, addr));
     let mut pipe = ClientOptions::new().open("//./pipe/socket")?;
-    // let mut client = TcpStream::connect("127.0.0.1:843").await?;
-
     copy_bidirectional(&mut stream, &mut pipe).await?;
 
     /*
@@ -25,24 +66,13 @@ async fn process_pipe(mut stream: TcpStream) -> tokio::io::Result<()> {
 
     let n = pipe.read(&mut buf).await?;
     stream.write_all(&buf[..n]).await?;
-    // info!("{}", StreamEvent::new(StreamEventLevel::Close, addr));
     */
 
+    // info!("{}", StreamEvent::new(StreamEventLevel::Close, addr));
     Ok(())
 }
-async fn process_udp(mut stream: TcpStream) -> tokio::io::Result<()> {
-    let datagram = UdpSocket::bind("0.0.0.0:0").await?;
-    datagram.connect("127.0.0.1:843").await?;
 
-    let mut buf = [0u8; 1024];
-
-    let n = stream.read(&mut buf).await?;
-    datagram.send(&buf[..n]).await?;
-
-    let n = datagram.recv(&mut buf).await?;
-    stream.write_all(&buf[..n]).await?;
-    Ok(())
-}
+#[allow(dead_code)]
 async fn process_udp_select(mut stream: TcpStream) -> tokio::io::Result<()> {
     let datagram = UdpSocket::bind("0.0.0.0:0").await?;
     datagram.connect("127.0.0.1:843").await?;
@@ -60,7 +90,6 @@ async fn process_udp_select(mut stream: TcpStream) -> tokio::io::Result<()> {
 
         // UDP -> TCP (Response)
         n = datagram.recv(&mut res) => {
-            info!("write");
             let n = n?;
             // Note: UDP 0-byte packets are valid, so we just check for errors
             stream.write_all(&res[..n]).await?;
@@ -71,42 +100,24 @@ async fn process_udp_select(mut stream: TcpStream) -> tokio::io::Result<()> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    dotenvy::dotenv().ok();
+    let address = SocketAddr::env();
+    let listener = TcpListener::bind(address).await?;
+    info!("Listening to {}...", address);
 
-    let hostname = env::var("HOSTNAME").unwrap_or_else(|_| "127.0.0.1".to_string());
-    let port = env::var("port")
-        .ok()
-        .and_then(|p| p.parse::<u16>().ok())
-        .unwrap_or(3000);
-    let address = SocketAddress {
-        address: hostname,
-        port: port,
-        family: Family::IPv4,
-    };
+    let targets = vec!["127.0.0.1:3001".to_string(), "127.0.0.1:3002".to_string()];
+    let targets = Arc::new(targets);
+    let current_index = Arc::new(AtomicUsize::new(0));
 
-    let listener = TcpListener::bind(address.to_string()).await?;
-    info!("Listening to http://{}/...", address);
-    // let response = "HTTP/1.1 200 OK\r\n\r\nHello, world!";
-
-    let connection = Socket::UDP;
+    let connection = Socket::RDMA;
 
     match connection {
         Socket::TCP => loop {
             match listener.accept().await {
-                Ok((mut stream, addr)) => {
+                Ok((stream, _addr)) => {
                     spawn(async move {
-                        // info!("{}", StreamEvent::new(StreamEventLevel::Open, addr));
-
-                        match TcpStream::connect("127.0.0.1:843").await {
-                            Ok(mut server) => {
-                                let _ = copy_bidirectional(&mut stream, &mut server).await;
-                                // info!("{}", StreamEvent::new(StreamEventLevel::Close, addr));
-                            }
-                            Err(_) => {
-                                error!("{}", StreamEvent::new(StreamEventLevel::Abort, addr));
-                                return;
-                            }
-                        };
+                        if let Err(e) = process_tcp(stream).await {
+                            error!("{:?}", e)
+                        }
                     });
                 }
                 Err(e) => error!("{:?}", e),
@@ -115,10 +126,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Socket::UDP => loop {
             match listener.accept().await {
                 Ok((stream, _addr)) => {
+                    let targets = Arc::clone(&targets);
+                    let index_ptr = Arc::clone(&current_index);
                     spawn(async move {
-                        match process_udp(stream).await {
-                            Ok(()) => {}
-                            Err(e) => error!("{:?}", e),
+                        let idx = index_ptr.fetch_add(1, Ordering::Relaxed) % targets.len();
+                        if let Err(e) = process_udp(stream, &targets[idx]).await {
+                            error!("{:?}", e)
                         }
                     });
                 }
@@ -127,11 +140,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
         Socket::UDS => loop {
             match listener.accept().await {
+                Ok((_stream, _addr)) => {}
+                Err(e) => error!("{:?}", e),
+            }
+        },
+        Socket::PIPE => loop {
+            match listener.accept().await {
                 Ok((stream, _addr)) => {
                     spawn(async move {
-                        match process_pipe(stream).await {
-                            Ok(()) => {}
-                            Err(e) => error!("{:?}", e),
+                        if let Err(e) = process_pipe(stream).await {
+                            error!("{:?}", e)
+                        }
+                    });
+                }
+                Err(e) => error!("{:?}", e),
+            }
+        },
+        Socket::RDMA => loop {
+            match listener.accept().await {
+                Ok((stream, _addr)) => {
+                    spawn(async move {
+                        if let Err(e) = process_raw(stream).await {
+                            error!("{:?}", e)
                         }
                     });
                 }
@@ -140,25 +170,3 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
     }
 }
-
-/*
-                        let _ = autofix(|| async {
-                            // info!("{}", StreamEvent::new(StreamEventLevel::Open, addr));
-
-                            // let mut client = ClientOptions::new().open("//./pipe/socket")?;
-                            let mut client = TcpStream::connect("127.0.0.1:843").await?;
-
-                            let mut buf = [0; 1024];
-
-                            let n = stream.read(&mut buf).await?;
-                            let _ = client.write_all(&buf[..n]).await;
-                            // info!("{}", StreamEvent::new(StreamEventLevel::Data, addr));
-
-                            let n = client.read(&mut buf).await?;
-                            let _ = stream.write_all(&buf[..n]).await;
-
-                            // info!("{}", StreamEvent::new(StreamEventLevel::Close, addr));
-                            Ok(())
-                        })
-                        .await;
-*/

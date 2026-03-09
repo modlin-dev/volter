@@ -1,10 +1,57 @@
 use chrono::{DateTime, Utc};
 use colored::Colorize;
-use std::future::Future;
 use std::{
+    env,
     fmt::{self, Debug, Display, Formatter},
-    net::SocketAddr,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
 };
+
+#[allow(dead_code)]
+pub enum LogLevel {
+    Info,
+    Warn,
+    Error,
+    Fatal,
+}
+
+#[allow(dead_code)]
+pub struct Log {
+    pub level: LogLevel,
+    pub message: String,
+    pub created: DateTime<Utc>,
+}
+
+#[macro_export]
+macro_rules! info {
+    ($($arg:tt)*) => {{
+        print!("{} {}{} ", Utc::now().to_timestamp().dimmed(), "info".blue().bold(), ":".dimmed());
+        println!($($arg)*);
+    }};
+}
+
+#[macro_export]
+macro_rules! warn {
+    ($($arg:tt)*) => {{
+        print!("{}{} ", "warn".yellow().bold(), ":".dimmed());
+        println!($($arg)*);
+    }};
+}
+
+#[macro_export]
+macro_rules! error {
+    ($($arg:tt)*) => {{
+        eprint!("{}{} ", "error".red().bold(), ":".dimmed());
+        eprintln!($($arg)*);
+    }};
+}
+
+#[macro_export]
+macro_rules! fatal {
+    ($($arg:tt)*) => {{
+        eprint!("{}{} ", "fatal".purple().bold(), ":".dimmed());
+        eprintln!($($arg)*);
+    }};
+}
 
 pub enum Family {
     IPv4,
@@ -39,8 +86,40 @@ impl SocketAddress {
             },
         }
     }
+    pub fn env() -> SocketAddress {
+        dotenvy::dotenv().ok();
+
+        SocketAddress {
+            address: env::var("HOSTNAME").unwrap_or_else(|_| "127.0.0.1".to_string()),
+            port: env::var("port")
+                .ok()
+                .and_then(|p| p.parse::<u16>().ok())
+                .unwrap_or(3000),
+            family: Family::IPv4,
+        }
+    }
     pub fn to_string(&self) -> String {
         format!("{}:{}", self.address, self.port)
+    }
+}
+
+pub trait SocketAddrEnv {
+    fn env() -> Self;
+}
+
+impl SocketAddrEnv for SocketAddr {
+    fn env() -> Self {
+        dotenvy::dotenv().ok();
+
+        let ip: IpAddr = env::var("HOSTNAME")
+            .unwrap_or_else(|_| "127.0.0.1".to_string())
+            .parse()
+            .unwrap_or_else(|_| IpAddr::V4(Ipv4Addr::LOCALHOST));
+        let port = env::var("PORT")
+            .ok()
+            .and_then(|p| p.parse::<u16>().ok())
+            .unwrap_or(3000);
+        Self::new(ip, port)
     }
 }
 
@@ -60,6 +139,7 @@ impl Debug for SocketAddress {
     }
 }
 
+#[allow(dead_code)]
 pub enum StreamEventLevel {
     Open,
     Data,
@@ -142,50 +222,28 @@ impl<Tz: chrono::TimeZone> DateTimeExt for DateTime<Tz> {
     }
 }
 
-#[macro_export]
-macro_rules! info {
-    ($($arg:tt)*) => {{
-        print!("{}{} ", "info".blue().bold(), ":".dimmed());
-        println!($($arg)*);
-    }};
-}
-
-#[macro_export]
-macro_rules! warn {
-    ($($arg:tt)*) => {{
-        print!("{}{} ", "warn".yellow().bold(), ":".dimmed());
-        println!($($arg)*);
-    }};
-}
-
-#[macro_export]
-macro_rules! error {
-    ($($arg:tt)*) => {{
-        eprint!("{}{} ", "error".red().bold(), ":".dimmed());
-        eprintln!($($arg)*);
-    }};
-}
-
-#[macro_export]
-macro_rules! fatal {
-    ($($arg:tt)*) => {{
-        eprint!("{}{} ", "fatal".purple().bold(), ":".dimmed());
-        eprintln!($($arg)*);
-    }};
-}
-
-pub async fn autofix<F, Fut>(f: F)
-where
-    F: FnOnce() -> Fut,
-    Fut: Future<Output = tokio::io::Result<()>>,
-{
-    if let Err(e) = f().await {
-        error!("{}", e);
-    }
-}
-
+#[allow(dead_code)]
 pub enum Socket {
     TCP,
     UDP,
     UDS,
+    PIPE,
+    RDMA,
+}
+
+#[allow(dead_code)]
+pub fn set(byte: u8, n: u8) -> u8 {
+    byte | (1 << n)
+}
+#[allow(dead_code)]
+pub fn clear(byte: u8, n: u8) -> u8 {
+    byte & !(1 << n)
+}
+#[allow(dead_code)]
+pub fn toggle(byte: u8, n: u8) -> u8 {
+    byte ^ (1 << n)
+}
+#[allow(dead_code)]
+pub fn read(byte: u8, n: u8) -> u8 {
+    (byte >> n) & 1
 }
