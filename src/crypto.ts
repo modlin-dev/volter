@@ -2,6 +2,12 @@ export function hash(password: string, hmac?: string): string {
 	const hasher = new Bun.CryptoHasher("sha256", hmac)
 	return hasher.update(password).digest("hex")
 }
+export async function hash_async(password: string): Promise<string> {
+    const encoded = new TextEncoder().encode(password)
+    const hashBuffer = await crypto.subtle.digest("SHA-256", encoded)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    return hashArray.map(b => b.toString(16).padStart(2, "0")).join("")
+}
 
 export interface CipherText {
 	text: string
