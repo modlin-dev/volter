@@ -80,3 +80,6 @@ export interface Attachment {
 	content_id: string | null
 	content?: string | Buffer<ArrayBufferLike>
 }
+
+// HTTP
+export type HTTPMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "HEAD" | "OPTIONS"
