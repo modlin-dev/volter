@@ -81,5 +81,34 @@ export interface Attachment {
 	content?: string | Buffer<ArrayBufferLike>
 }
 
+export interface AttachmentOptions {
+	filename: string
+	content_type?: string
+	content_disposition?: string
+	content_id?: string
+	content: string | Buffer<ArrayBufferLike>
+	path?: string
+}
+export interface EmailOptions {
+	from: string
+	to: string[]
+	cc?: string[]
+	bcc?: string[]
+
+	subject: string
+	reply_to?: string[]
+	headers?: Record<string, string>
+	text?: string
+	html?: string
+	attachments?: AttachmentOptions[]
+
+	// template?: Template
+	// react?: React.ReactNode
+
+	scheduled_at?: Date
+	// topic_id?: string
+	// tags?: Tag[]
+}
+
 // HTTP
 export type HTTPMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "HEAD" | "OPTIONS"
