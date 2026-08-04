@@ -1,11 +1,15 @@
 export type ID = string
+export interface Metadata {
+	created_at: string | Date
+	updated_at: string | Date
+}
 export interface Connection {
-    hostname: string
-    port: number
-    auth: {
-        username: string
-        password: string
-    }
+	hostname: string
+	port: number
+	auth: {
+		username: string
+		password: string
+	}
 }
 
 export enum Gender {
@@ -47,14 +51,14 @@ export interface Contact {
 }
 
 export interface User {
-    id: ID
-    displayname?: string
-    username: string
-    created_at: Date
-    updated_at: Date
+	id: ID
+	displayname?: string
+	username: string
+	created_at: Date
+	updated_at: Date
 }
 
-export interface Email {
+export interface Email extends Metadata {
 	id: ID
 	from: string
 	to: string[]
@@ -69,8 +73,6 @@ export interface Email {
 	attachments: Attachment[]
 
 	message_id: string
-
-	created_at: string | Date
 }
 export interface Attachment {
 	id: ID
