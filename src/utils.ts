@@ -1,4 +1,4 @@
-import { init } from "@paralleldrive/cuid2"
+// import { init } from "@paralleldrive/cuid2"
 import ansi from "ansi-colors"
 import z from "zod"
 
@@ -36,7 +36,7 @@ export function createRandom(length = 32) {
 	const bytes = crypto.getRandomValues(new Uint8Array(length))
 	return bytes
 }
-export const createID = init({ length: 32 })
+// export const createID = init({ length: 32 })
 export function createPIN(): string {
 	const array = new Uint32Array(1)
 	crypto.getRandomValues(array)

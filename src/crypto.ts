@@ -23,14 +23,14 @@ function toBase64(bytes: Uint8Array): string {
 	return btoa(binary)
 }
 
-export function hash(password: string, hmac?: string): string {
+export function hashSync(password: string, hmac?: string): string {
 	if (typeof Bun !== "undefined" && Bun.CryptoHasher) {
 		const hasher = new Bun.CryptoHasher("sha256", hmac)
 		return hasher.update(password).digest("hex")
 	}
 	throw new Error("hash() is synchronous and only available in Bun. Use hash_async() for WinterTC/Web Crypto compatibility.")
 }
-export async function hash_async(password: string): Promise<string> {
+export async function hash(password: string): Promise<string> {
 	const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(password))
 	const bytes = new Uint8Array(digest)
 	let hex = ""
