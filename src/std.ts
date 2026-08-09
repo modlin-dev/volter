@@ -77,6 +77,7 @@ export interface Email extends Metadata {
 export interface Attachment {
 	id: ID
 	filename: string | null
+    size?: number
 	content_type: string
 	content_disposition: string | null
 	content_id: string | null
